@@ -99,10 +99,12 @@
             flex-direction: column;
             gap: 10px;
             width: 100%;
-            max-width: 100%;
+            max-width: 960px;
             margin: 10px auto;
             flex: 1;
             text-align: center;
+            justify-content: center;
+            align-items: center;
         }
         .panel {
             padding: 10px;
@@ -111,6 +113,7 @@
             background-color: var(--panel-bg-light);
             margin: 0 auto;
             width: 100%;
+            max-width: 960px;
         }
         body.dark-mode .panel {
             background-color: var(--panel-bg-dark);
@@ -143,14 +146,15 @@
             display: flex;
             justify-content: center;
             margin: 0 auto;
-            width: fit-content;
+            width: 100%;
+            max-width: 960px;
         }
         .cards-panel > .grid-container {
             display: grid;
             grid-template-columns: repeat(3, minmax(120px, 1fr));
             gap: 15px;
             justify-content: center;
-            width: 100%;
+            width: fit-content;
         }
         .card {
             background-color: var(--card-bg);
@@ -200,6 +204,11 @@
             color: inherit;
             text-decoration: underline;
         }
+        .theme-toggle-container {
+            display: flex;
+            justify-content: center;
+            margin: 10px auto 0;
+        }
         #theme-toggle {
             width: 40px;
             height: 40px;
@@ -211,7 +220,6 @@
             align-items: center;
             justify-content: center;
             background-color: rgba(255, 255, 255, 0.2);
-            margin: 10px auto 0;
             touch-action: manipulation;
         }
         .modal {
@@ -300,18 +308,20 @@
                 grid-row: 4;
                 display: flex;
                 justify-content: center;
+                align-items: center;
                 margin: 0 auto;
                 padding: 10px;
-                width: fit-content;
+                width: 100%;
+                max-width: 960px;
                 min-height: 160px;
             }
             .cards-panel > .grid-container {
                 display: grid;
-                grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+                grid-template-columns: repeat(3, minmax(120px, 1fr));
                 gap: 15px;
                 justify-content: center;
                 align-items: center;
-                width: 100%;
+                width: fit-content;
             }
             .spacer {
                 grid-row: 5;
@@ -368,7 +378,9 @@
                 <a href="https://github.com/orgs/Peng-Protocol/repositories" target="_blank">GitHub</a>
                 <a href="https://x.com/Dexhune" target="_blank">X (Twitter)</a>
             </div>
-            <button id="theme-toggle">☀️</button>
+            <div class="theme-toggle-container">
+                <button id="theme-toggle">☀️</button>
+            </div>
         </div>
     </div>
     <div id="modal" class="modal">
