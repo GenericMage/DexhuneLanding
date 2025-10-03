@@ -44,6 +44,38 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, shrink-to-fit=no">
     <title>Dexhune Info</title>
     <link rel="icon" type="image/png" href="./assets/dexhuneLogo.png">
+    <script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+            return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+            if (gk_isXlsx && gk_xlsxFileLookup[filename] && typeof XLSX !== 'undefined') {
+                try {
+                    var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                    var firstSheetName = workbook.SheetNames[0];
+                    var worksheet = workbook.Sheets[firstSheetName];
+                    var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                    var filteredData = jsonData.filter(row => row.some(filledCell));
+                    var headerRowIndex = filteredData.findIndex((row, index) =>
+                        row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                    );
+                    if (headerRowIndex === -1 || headerRowIndex > 25) {
+                        headerRowIndex = 0;
+                    }
+                    var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex));
+                    csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                    return csv;
+                } catch (e) {
+                    console.error('Error in loadFileData:', e);
+                    return "";
+                }
+            }
+            return gk_fileData[filename] || "";
+        }
+    </script>
     <style>
         :root {
             --bg-light: #e0e0e0;
@@ -140,7 +172,21 @@
         }
         .welcome-text p {
             font-size: 16px;
-            margin: 0;
+            margin: 0 0 10px 0;
+        }
+        .welcome-text .projects-intro {
+            font-size: 10px;
+            margin: 0 0 10px 0;
+        }
+        .welcome-text .legend-title {
+            font-size: 12px;
+            opacity: 0.15;
+            margin: 10px 0;
+        }
+        .welcome-text .legend-status {
+            font-size: 8px;
+            opacity: 0.45;
+            margin: 0 0 10px 0;
         }
         .cards-panel {
             display: flex;
@@ -229,14 +275,14 @@
             left: 0;
             width: 100%;
             height: 100%;
-            z-index: 1000;
             background-color: rgba(0, 0, 0, 0.6);
             justify-content: center;
             align-items: center;
+            z-index: 1000;
         }
         .modal-content {
             max-width: 600px;
-            width: auto;
+            width: 90%;
             padding: 20px;
             border-radius: 8px;
             text-align: center;
@@ -244,7 +290,6 @@
             line-height: 1.5;
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
             position: relative;
-            z-index: 1001;
             background-color: var(--modal-bg-light);
             color: var(--text-light);
         }
@@ -268,20 +313,46 @@
             text-decoration: underline;
             padding: 0;
         }
+        .card-link-button {
+            background-color: var(--card-bg);
+            border-radius: 8px;
+            padding: 10px;
+            cursor: pointer;
+            font-size: 14px;
+            text-align: center;
+            user-select: none;
+            touch-action: manipulation;
+            width: 120px;
+            height: 40px;
+            box-sizing: border-box;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border: none;
+            color: inherit;
+            font-weight: bold;
+            margin: 5px;
+        }
         .close {
             position: absolute;
             top: 10px;
-            right: 20px;
+            right: 10px;
             font-size: 24px;
             cursor: pointer;
-            z-index: 1002;
+            user-select: none;
+            padding: 15px;
+            line-height: 1;
+            z-index: 1001;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
         @media (min-width: 768px) {
             .container {
                 width: 960px;
                 max-width: 960px;
                 display: grid;
-                grid-template-rows: minmax(0, 90px) minmax(0, 110px) minmax(0, 30px) minmax(0, auto) minmax(0, 10px) minmax(0, 110px);
+                grid-template-rows: minmax(0, 90px) minmax(0, 150px) minmax(0, 30px) minmax(0, auto) minmax(0, 10px) minmax(0, 110px);
                 gap: 10px;
                 padding: 10px;
                 box-sizing: border-box;
@@ -362,6 +433,9 @@
             <div class="welcome-text">
                 <h1>Welcome!</h1>
                 <p>Dexhune is building AMM, Orderbook and Stablecoin usecases on the EVM!</p>
+                <p class="projects-intro">Below are a number of projects we're working on!</p>
+                <h2 class="legend-title">Legend</h2>
+                <p class="legend-status">🟢 Complete 🟠 In Progress 🔴 Still Drafting</p>
             </div>
         </div>
         <div class="welcome-buffer desktop"></div>
@@ -383,31 +457,15 @@
             </div>
         </div>
     </div>
-    <div id="modal" class="modal">
-        <div class="modal-content">
-            <span class="close" id="modalClose">×</span>
-            <div class="modal-section">
-                <div class="modal-header">Description</div>
-                <p id="modalDescription"></p>
-            </div>
-            <div class="modal-section">
-                <div class="modal-header">Links</div>
-                <div id="modalLinks" class="modal-links"></div>
-            </div>
-        </div>
-    </div>
     <script>
         const toggleButton = document.getElementById('theme-toggle');
         const body = document.body;
-        const mesh = document.querySelector('.mesh-pattern');
-        const modal = document.getElementById('modal');
-        const modalDescription = document.getElementById('modalDescription');
-        const modalLinks = document.getElementById('modalLinks');
-        const modalClose = document.getElementById('modalClose');
         const cardContainer = document.getElementById('cardContainer');
         const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
         let isDark = prefersDark;
         let isToggling = false;
+        let modalStack = [];
+
         const cardData = [
             {
                 title: "Token Registry",
@@ -429,7 +487,7 @@
             },
             {
                 title: "Immaterium",
-                description: "A fully on-chain subscription system with decentralized arbitration and p2p file storage/content delivery network.",
+                description: "A fully on-chain paid subscription system with distributed moderation.",
                 links: '<a href="https://github.com/Peng-Protocol/Immaterium/tree/main" target="_blank">Github</a>',
                 statusImage: './assets/dexhuneStatusYellow.png'
             },
@@ -447,7 +505,7 @@
             },
             {
                 title: "Chainmail",
-                description: "A fully end-to-end encrypted blockchain messaging dApp with a novel decentralized moderation system.",
+                description: "A fully end-to-end encrypted blockchain messaging dApp, with newsletter and social media elements integrating a novel distributed moderation system.",
                 links: "None",
                 statusImage: './assets/dexhuneStatusRed.png'
             },
@@ -480,8 +538,33 @@
                 description: "A demonstration of \"holder cell\" arrays for storing holder addresses on-chain, based on <a href=\"https://github.com/Peng-Protocol/Dexhune-P/blob/main/LAU/LinkGold.sol\" target=\"_blank\">Link Gold</a>. Eliminates the need for off-chain holder fetches. Will be mintable up to \"maxSupply\", all mints will go to a \"poolManager\" contract which will use the mint revenue to create two-sided Dexhune-SS or CoinClash liquidity deposits, all rewards from the pool will be distributed to Dexhune holders. Former holders of <a href=\"https://mint.dexhune.eth.limo\" target=\"_blank\">Peng NFTs</a>, will be eligible for conversion of their holdings at 1:10 ratio.",
                 links: "None",
                 statusImage: './assets/dexhuneStatusRed.png'
+            },
+            {
+                title: "MailNames",
+                description: "A domain name system for <button class=\"card-link-button\" data-title=\"Chainmail\">Chainmail</button> that will enable free mints of domain names with a one year allowance. To extend the allowance period by another year the retainer must \"check-in\". Check-ins will be free. Prospective buyers will be able to create offers to buy a name from an existing retainer.",
+                links: "None",
+                statusImage: './assets/dexhuneStatusRed.png'
+            },
+            {
+                title: "Preferro",
+                description: "A blockchain domain name management system that will allow users to lock a given domain name for a period of time. While the name is locked it will not be transferable, rather the original retainer/holder will be able to change the content of the base name and create new subnames, but existing subnames cannot be changed. The aim is to create immutable frontend applications, with upgrades being handled through the issuance of a new subname.",
+                links: "None",
+                statusImage: './assets/dexhuneStatusRed.png'
+            },
+            {
+                title: "Net Concordance",
+                description: "A P2P sub-network for storing, transforming, and delivering files using deterministic file hashing. A key utility for <button class=\"card-link-button\" data-title=\"Immaterium\">Immaterium</button>. The system will use a fee market for initial storage of files, with additional time paid for by users via access fee micro/macropayments.",
+                links: "None",
+                statusImage: './assets/dexhuneStatusRed.png'
+            },
+            {
+                title: "Super-Concordance",
+                description: "A P2P sub-network integrating IPFS for storing and presenting static webpages, similar fee setup as <button class=\"card-link-button\" data-title=\"Net Concordance\">Net Concordance</button>.",
+                links: "None",
+                statusImage: './assets/dexhuneStatusRed.png'
             }
         ];
+
         function setTheme(isDark) {
             if (isToggling) return;
             isToggling = true;
@@ -498,86 +581,164 @@
                 isToggling = false;
             }, 200);
         }
-        function showModal(title, description, links) {
-            modalDescription.innerHTML = description;
-            modalLinks.innerHTML = links;
-            modal.style.display = 'flex';
+
+        function closeModal(modalDiv) {
+            try {
+                if (!modalDiv) {
+                    console.warn('Attempted to close undefined modal');
+                    return;
+                }
+                console.log('Closing modal');
+                modalDiv.style.display = 'none';
+                modalDiv.remove();
+                modalStack = modalStack.filter(item => item.modal !== modalDiv);
+                if (modalStack.length > 0) {
+                    console.log('Showing previous modal:', modalStack[modalStack.length - 1].title);
+                    modalStack[modalStack.length - 1].modal.style.display = 'flex';
+                }
+            } catch (e) {
+                console.error('Error closing modal:', e);
+            }
         }
-        function closeModal() {
-            setTimeout(() => {
-                modal.style.display = 'none';
-                modalDescription.textContent = '';
-                modalLinks.innerHTML = '';
-            }, 200);
+
+        function showModal(title, description, links, zIndex = 1000) {
+            try {
+                console.log('Opening modal for:', title);
+                const modalDiv = document.createElement('div');
+                modalDiv.className = 'modal';
+                modalDiv.style.zIndex = zIndex;
+                modalDiv.innerHTML = `
+                    <div class="modal-content">
+                        <span class="close">×</span>
+                        <div class="modal-section">
+                            <div class="modal-header">Description</div>
+                            <p>${description}</p>
+                        </div>
+                        <div class="modal-section">
+                            <div class="modal-header">Links</div>
+                            <div class="modal-links">${links}</div>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(modalDiv);
+                modalDiv.style.display = 'flex';
+
+                const closeButton = modalDiv.querySelector('.close');
+                const modalLinksDiv = modalDiv.querySelector('.modal-links');
+                const modalDescription = modalDiv.querySelector('.modal-section p');
+
+                // Handle close button
+                const handleClose = (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    closeModal(modalDiv);
+                };
+                closeButton.addEventListener('click', handleClose);
+                closeButton.addEventListener('touchstart', handleClose, { passive: false });
+
+                // Handle outside click/tap
+                const handleOutsideClick = (e) => {
+                    if (e.target === modalDiv) {
+                        closeModal(modalDiv);
+                    }
+                };
+                modalDiv.addEventListener('click', handleOutsideClick);
+                modalDiv.addEventListener('touchstart', handleOutsideClick, { passive: true });
+
+                // Handle card-link buttons
+                modalDescription.querySelectorAll('.card-link-button').forEach(button => {
+                    const linkedTitle = button.getAttribute('data-title');
+                    const handleCardLinkButton = (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        console.log('Clicked card-link-button:', linkedTitle);
+                        const linkedCard = cardData.find(card => card.title === linkedTitle);
+                        if (linkedCard) {
+                            closeModal(modalDiv);
+                            showModal(linkedCard.title, linkedCard.description, linkedCard.links, zIndex + 10);
+                        } else {
+                            console.warn('Card-link-button target not found:', linkedTitle);
+                        }
+                    };
+                    button.addEventListener('click', handleCardLinkButton);
+                    button.addEventListener('touchstart', handleCardLinkButton, { passive: false });
+                });
+
+                modalStack.push({ modal: modalDiv, title, description, links });
+            } catch (e) {
+                console.error('Error showing modal:', title, e);
+            }
         }
+
         function createCard({ title, description, links, statusImage }) {
-            const card = document.createElement('div');
-            card.className = 'card';
-            card.innerHTML = `
-                <div class="card-title">${title}</div>
-                <div class="card-status" style="background-image: url('${statusImage}');"></div>
-            `;
-            let touchTimeout;
-            card.addEventListener('click', (e) => {
-                e.stopPropagation();
-                showModal(title, description, links);
-            });
-            card.addEventListener('touchstart', (e) => {
-                e.stopPropagation();
-                touchTimeout = setTimeout(() => {
+            try {
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.innerHTML = `
+                    <div class="card-title">${title}</div>
+                    <div class="card-status" style="background-image: url('${statusImage}');"></div>
+                `;
+                let touchTimeout;
+                const handleCardInteraction = (e) => {
+                    e.stopPropagation();
+                    if (modalStack.length > 0) {
+                        modalStack[modalStack.length - 1].modal.style.display = 'none';
+                    }
                     showModal(title, description, links);
-                }, 200);
-            }, { passive: true });
-            card.addEventListener('touchend', (e) => {
-                e.stopPropagation();
-                clearTimeout(touchTimeout);
-            }, { passive: true });
-            card.addEventListener('touchmove', (e) => {
-                e.stopPropagation();
-                clearTimeout(touchTimeout);
-            }, { passive: true });
-            return card;
+                };
+                card.addEventListener('click', handleCardInteraction);
+                card.addEventListener('touchstart', (e) => {
+                    e.stopPropagation();
+                    touchTimeout = setTimeout(() => handleCardInteraction(e), 200);
+                }, { passive: true });
+                card.addEventListener('touchend', (e) => {
+                    e.stopPropagation();
+                    clearTimeout(touchTimeout);
+                }, { passive: true });
+                card.addEventListener('touchmove', (e) => {
+                    e.stopPropagation();
+                    clearTimeout(touchTimeout);
+                }, { passive: true });
+                return card;
+            } catch (e) {
+                console.error('Error creating card:', title, e);
+                return null;
+            }
         }
+
         window.addEventListener('load', () => {
-            modal.style.display = 'none';
-            cardData.forEach(data => {
-                const card = createCard(data);
-                cardContainer.appendChild(card);
-            });
-            toggleButton.addEventListener('click', (e) => {
-                e.stopPropagation();
-                if (!isToggling) {
-                    isDark = !isDark;
-                    setTheme(isDark);
-                }
-            });
-            toggleButton.addEventListener('touchstart', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                if (!isToggling) {
-                    isDark = !isDark;
-                    setTheme(isDark);
-                }
-            }, { passive: false });
-            modalClose.addEventListener('click', (e) => {
-                e.stopPropagation();
-                closeModal();
-            });
-            modalClose.addEventListener('touchstart', (e) => {
-                e.stopPropagation();
-                closeModal();
-            }, { passive: true });
-            modal.addEventListener('click', (e) => {
-                if (e.target === modal) {
-                    closeModal();
-                }
-            });
-            modal.addEventListener('touchstart', (e) => {
-                if (e.target === modal) {
-                    closeModal();
-                }
-            }, { passive: true });
+            try {
+                console.log('Starting card creation...');
+                cardData.forEach((data, index) => {
+                    console.log(`Creating card ${index + 1}: ${data.title}`);
+                    const card = createCard(data);
+                    if (card) {
+                        cardContainer.appendChild(card);
+                    } else {
+                        console.warn(`Failed to create card for: ${data.title}`);
+                    }
+                });
+                console.log('Card creation completed.');
+                toggleButton.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if (!isToggling) {
+                        isDark = !isDark;
+                        setTheme(isDark);
+                    }
+                });
+                toggleButton.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (!isToggling) {
+                        isDark = !isDark;
+                        setTheme(isDark);
+                    }
+                }, { passive: false });
+            } catch (e) {
+                console.error('Error in window.load event:', e);
+            }
         });
+
         setTheme(isDark);
     </script>
 </body>
